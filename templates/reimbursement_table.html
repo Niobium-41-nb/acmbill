@@ -1,0 +1,88 @@
+ <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>备案表 - {{ project.title }}</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 20mm;
+        }
+        body {
+            font-family: "Microsoft YaHei", "SimSun", sans-serif;
+            font-size: 12px;
+            color: #000;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            padding: 8px 6px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+            border: 1px solid #000;
+            color: #000;
+        }
+        td {
+            padding: 6px;
+            border: 1px solid #000;
+            font-size: 11px;
+            color: #000;
+            text-align: center;
+        }
+        @media print {
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <table>
+        <colgroup>
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col style="white-space:nowrap;">
+            <col>
+        </colgroup>
+        <thead>
+            <tr>
+                <th>指导老师</th>
+                <th>报账时间</th>
+                <th>报账内容</th>
+                <th>支出金额</th>
+                <th>报账人</th>
+                <th>学号</th>
+                <th>班级</th>
+                <th>对应比赛名称和时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.teacher }}</td>
+                <td>{{ item.reimbursement_date }}</td>
+                <td>{% if item.expense_category == '大交通费' %}
+                    {% set parts = [] %}
+                    大交通{% if item.direction %}{{ item.direction }}{% endif %}
+                    {% if item.origin and item.destination %} {{ item.origin }}-{{ item.destination }}{% endif %}
+                    {% if item.transport_mode %} {{ item.transport_mode }}{% endif %}
+                    {% else %}{{ item.expense_category }}{% endif %}</td>
+                <td>¥{{ '%.2f'|format(item.amount) }}</td>
+                <td>{{ item.applicant }}</td>
+                <td>{{ item.student_id }}</td>
+                <td>{{ item.student_class }}</td>
+                {% if loop.first %}
+                <td rowspan="{{ items|length }}">{{ project.competition_name or '' }}{% if project.competition_date %}<br>{{ project.competition_date }}{% endif %}</td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

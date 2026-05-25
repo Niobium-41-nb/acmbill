@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}注册 - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center py-3">
+                <h4 class="mb-0"><i class="bi bi-person-plus"></i> 用户注册</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.register') }}" id="registerForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-person"></i> 用户名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="username" required placeholder="登录用用户名">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-card-text"></i> 真实姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="real_name" required placeholder="请输入真实姓名">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-envelope"></i> 邮箱 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="email" class="form-control" name="email" id="emailInput" required placeholder="请输入邮箱地址">
+                            <button type="button" class="btn btn-outline-primary" id="sendCodeBtn" onclick="sendVerificationCode()">
+                                <i class="bi bi-send"></i> 发送验证码
+                            </button>
+                        </div>
+                        <div id="emailHelp" class="form-text">用于接收验证码，请确保邮箱可用</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-shield-check"></i> 邮箱验证码 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="verification_code" required placeholder="请输入6位验证码" maxlength="6">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-lock"></i> 密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="password" required placeholder="至少6位">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-lock"></i> 确认密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="confirm_password" required placeholder="再次输入密码">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-credit-card"></i> 学号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_id" required placeholder="请输入学号">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="bi bi-building"></i> 班级 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_class" required placeholder="请输入班级">
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-person-plus"></i> 注册
+                        </button>
+                    </div>
+                </form>
+                <hr>
+                <div class="text-center">
+                    <p class="mb-0">已有账号？ <a href="{{ url_for('auth.login') }}" class="text-decoration-none">立即登录</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let countdown = 0;
+let timer = null;
+
+function sendVerificationCode() {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email) {
+        alert('请先输入邮箱地址');
+        return;
+    }
+    if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email)) {
+        alert('邮箱格式不正确');
+        return;
+    }
+
+    const btn = document.getElementById('sendCodeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 发送中...';
+
+    $.ajax({
+        url: '{{ url_for("auth.send_code") }}',
+        method: 'POST',
+        data: { email: email },
+        success: function(response) {
+            if (response.success) {
+                alert('验证码已发送到您的邮箱，请查收（有效期10分钟）');
+                startCountdown(60);
+            } else {
+                alert('发送失败: ' + (response.error || '未知错误'));
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send"></i> 发送验证码';
+            }
+        },
+        error: function(xhr) {
+            const resp = xhr.responseJSON;
+            alert('发送失败: ' + (resp?.error || '服务器错误'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send"></i> 发送验证码';
+        }
+    });
+}
+
+function startCountdown(seconds) {
+    countdown = seconds;
+    const btn = document.getElementById('sendCodeBtn');
+
+    if (timer) clearInterval(timer);
+
+    timer = setInterval(function() {
+        countdown--;
+        if (countdown <= 0) {
+            clearInterval(timer);
+            timer = null;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send"></i> 重新发送';
+        } else {
+            btn.innerHTML = countdown + '秒后重试';
+        }
+    }, 1000);
+}
+</script>
+{% endblock %}

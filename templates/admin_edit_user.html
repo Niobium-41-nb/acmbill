@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}编辑用户 - {{ edit_user.real_name or edit_user.username }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- 用户信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-person-gear"></i> 编辑用户</h4>
+                <a href="{{ url_for('project.admin_users') }}" class="btn btn-sm btn-light">
+                    <i class="bi bi-arrow-left"></i> 返回用户管理
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="text-muted small">用户名</label>
+                        <p class="fw-bold">{{ edit_user.username }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">邮箱</label>
+                        <p class="fw-bold">{{ edit_user.email }}
+                            {% if edit_user.email_verified %}
+                            <span class="badge bg-success">已验证</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">未验证</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="text-muted small">角色</label>
+                        <p class="fw-bold">
+                            <span class="badge bg-{{ 'danger' if edit_user.is_admin() else 'primary' }}">
+                                {{ '管理员' if edit_user.is_admin() else '用户' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改个人信息 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> 修改个人信息</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.admin_edit_user', user_id=edit_user.id) }}">
+                    <input type="hidden" name="action" value="profile">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">真实姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="real_name" required
+                                   value="{{ edit_user.real_name or '' }}" placeholder="请输入真实姓名">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">学号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_id" required
+                                   value="{{ edit_user.student_id or '' }}" placeholder="请输入学号">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">班级 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_class" required
+                                   value="{{ edit_user.student_class or '' }}" placeholder="请输入班级">
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2">
+                        <small><i class="bi bi-info-circle"></i> 管理员修改用户信息无需验证码</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> 保存修改
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 重置密码 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h5 class="mb-0"><i class="bi bi-key"></i> 重置密码</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.admin_edit_user', user_id=edit_user.id) }}">
+                    <input type="hidden" name="action" value="password">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">新密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="new_password" required
+                                   placeholder="至少6位" minlength="6">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">确认新密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="confirm_password" required
+                                   placeholder="再次输入新密码" minlength="6">
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2">
+                        <small><i class="bi bi-info-circle"></i> 管理员重置用户密码无需验证码</small>
+                    </div>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-key"></i> 重置密码
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

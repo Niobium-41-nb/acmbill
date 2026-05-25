@@ -1,0 +1,1324 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<!-- 项目头部信息 -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center py-3">
+        <div>
+            <h4 class="mb-0"><i class="bi bi-folder"></i> {{ project.title }}</h4>
+            <small class="text-white-50">
+                创建者: {{ project.owner_name }} | 
+                创建时间: {{ project.created_at }} | 
+                最后更新: {{ project.updated_at }}
+            </small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if project.status == 'draft' %}
+                <span class="badge bg-secondary fs-6">草稿</span>
+            {% elif project.status == 'submitted' %}
+                <span class="badge bg-primary fs-6">已提交</span>
+            {% elif project.status == 'approved' %}
+                <span class="badge bg-success fs-6">已通过</span>
+            {% elif project.status == 'rejected' %}
+                <span class="badge bg-danger fs-6">已驳回</span>
+            {% endif %}
+            <div class="btn-group">
+                <a href="{{ url_for('project.edit_project', project_id=project.id) }}" class="btn btn-light btn-sm">
+                    <i class="bi bi-pencil"></i> 编辑
+                </a>
+                {% if project.owner_id == current_user.id or current_user.is_admin() %}
+                <button class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown"></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <form method="POST" action="{{ url_for('project.update_status', project_id=project.id) }}" style="display:inline;">
+                            <input type="hidden" name="status" value="submitted">
+                            <button type="submit" class="dropdown-item"><i class="bi bi-send"></i> 提交审核</button>
+                        </form>
+                    </li>
+                    {% if current_user.is_admin() %}
+                    <li>
+                        <form method="POST" action="{{ url_for('project.update_status', project_id=project.id) }}" style="display:inline;">
+                            <input type="hidden" name="status" value="approved">
+                            <button type="submit" class="dropdown-item text-success"><i class="bi bi-check-circle"></i> 通过</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form method="POST" action="{{ url_for('project.update_status', project_id=project.id) }}" style="display:inline;">
+                            <input type="hidden" name="status" value="rejected">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-x-circle"></i> 驳回</button>
+                        </form>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="POST" action="{{ url_for('project.delete_project', project_id=project.id) }}"
+                              onsubmit="return confirm('确定要删除该项目吗？此操作不可恢复！');">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> 删除项目</button>
+                        </form>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                {% if project.description %}
+                <p><strong>描述：</strong>{{ project.description }}</p>
+                {% endif %}
+                {% if project.competition_name %}
+                <p><strong>比赛名称：</strong>{{ project.competition_name }}</p>
+                {% endif %}
+                {% if project.competition_date %}
+                <p><strong>比赛时间：</strong>{{ project.competition_date }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="icon text-primary"><i class="bi bi-receipt"></i></div>
+                            <div class="number">{{ items|length }}</div>
+                            <small class="text-muted">备案条目</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="icon text-success"><i class="bi bi-file-earmark"></i></div>
+                            <div class="number">{{ all_files|length }}</div>
+                            <small class="text-muted">文件</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stat-card">
+                            <div class="icon text-info"><i class="bi bi-people"></i></div>
+                            <div class="number">{{ members|length + 1 }}</div>
+                            <small class="text-muted">成员</small>
+                        </div>
+                    </div>
+                </div>
+                {% if total_amount > 0 %}
+                <div class="mt-3 text-center">
+                    <strong>总金额：</strong>
+                    <span class="text-danger fs-5">¥{{ '%.2f'|format(total_amount) }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 左侧：备案表 -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0"><i class="bi bi-receipt"></i> 备案表</h5>
+                <div class="btn-group">
+                    <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="bi bi-plus-lg"></i> 添加条目
+                    </button>
+                    <button class="btn btn-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-download"></i> 导出
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{{ url_for('project.export_excel', project_id=project.id) }}">
+                            <i class="bi bi-file-earmark-excel text-success"></i> 导出 Excel
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('project.export_html', project_id=project.id) }}" target="_blank">
+                            <i class="bi bi-file-earmark-text text-primary"></i> 预览/打印
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('project.export_zip', project_id=project.id) }}">
+                            <i class="bi bi-file-earmark-zip text-warning"></i> 导出 ZIP（含附件）
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>指导老师</th>
+                                <th>报账时间</th>
+                                <th>报账内容</th>
+                                <th>金额</th>
+                                <th>报账人</th>
+                                <th>学号</th>
+                                <th>班级</th>
+                                <th>文件状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.teacher }}</td>
+                                <td>{{ item.reimbursement_date }}</td>
+                                <td>
+                                    {% if item.expense_category == '报名费' %}
+                                        <span class="badge bg-primary">报名费</span>
+                                    {% elif item.expense_category == '住宿费' %}
+                                        <span class="badge bg-success">住宿费</span>
+                                    {% elif item.expense_category == '大交通费' %}
+                                        <span class="badge bg-warning text-dark">
+                                            大交通{% if item.direction %}{{ item.direction }}{% endif %}
+                                            {% if item.origin and item.destination %}{{ item.origin }}-{{ item.destination }}{% endif %}
+                                            {% if item.transport_mode %}{{ item.transport_mode }}{% endif %}
+                                        </span>
+                                    {% elif item.expense_category == '小交通' %}
+                                        <span class="badge bg-info text-dark">小交通</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ item.expense_category }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-danger">¥{{ '%.2f'|format(item.amount) }}</td>
+                                <td>{{ item.applicant }}</td>
+                                <td>{{ item.student_id }}</td>
+                                <td>{{ item.student_class }}</td>
+                                <td>
+                                    {% if item.expense_category != '小交通' %}
+                                        {% set item_f = item_files.get(item.id, {}) %}
+                                        {% set inv_count = item_f.get('invoice', 0) %}
+                                        {% set pay_count = item_f.get('payment', 0) %}
+                                        {% set has_all = inv_count > 0 and pay_count > 0 %}
+                                        <div style="font-size:0.75rem; white-space:nowrap;">
+                                            {% if has_all %}
+                                                <span class="text-success" title="文件齐全">
+                                                    <i class="bi bi-check-circle-fill"></i> 齐全
+                                                </span>
+                                            {% else %}
+                                                <span class="text-danger" title="缺少文件">
+                                                    <i class="bi bi-exclamation-circle-fill"></i>
+                                                    {% if inv_count == 0 and pay_count == 0 %}
+                                                        缺发票+支付记录
+                                                    {% elif inv_count == 0 %}
+                                                        缺发票
+                                                    {% else %}
+                                                        缺支付记录
+                                                    {% endif %}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button class="btn btn-outline-primary" onclick="editItem({{ item.id }})" title="编辑">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteItem({{ item.id }})" title="删除">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% if item.expense_category != '小交通' %}
+                                        <button class="btn btn-outline-info" onclick="showItemFiles({{ item.id }})" title="管理文件">
+                                            <i class="bi bi-paperclip"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-info">
+                                <td colspan="3" class="text-end"><strong>合计：</strong></td>
+                                <td class="text-danger"><strong>¥{{ '%.2f'|format(total_amount) }}</strong></td>
+                                <td colspan="5"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-receipt" style="font-size: 3rem; color: #dee2e6;"></i>
+                    <p class="text-muted mt-2">暂无备案条目，点击上方按钮添加</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：团队和文件 -->
+    <div class="col-md-4">
+        <!-- 团队成员 -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center py-3">
+                <h5 class="mb-0"><i class="bi bi-people"></i> 团队成员</h5>
+                {% if project.owner_id == current_user.id and members|length < 3 %}
+                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                    <i class="bi bi-person-plus"></i> 邀请
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                         style="width: 40px; height: 40px; font-size: 16px; flex-shrink: 0;">
+                        {{ (project.owner.real_name or project.owner.username)[0] }}
+                    </div>
+                    <div class="ms-3">
+                        <strong>{{ project.owner.real_name or project.owner.username }}</strong>
+                        <span class="badge bg-warning text-dark ms-1">创建者</span>
+                    </div>
+                </div>
+                {% for member in members %}
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rounded-circle bg-info text-white d-flex align-items-center justify-content-center"
+                         style="width: 40px; height: 40px; font-size: 16px; flex-shrink: 0;">
+                        {{ (member.user.real_name or member.user.username)[0] }}
+                    </div>
+                    <div class="ms-3 flex-grow-1">
+                        <strong>{{ member.user.real_name or member.user.username }}</strong>
+                        <small class="d-block text-muted">{{ member.user.student_id or '' }}</small>
+                    </div>
+                    {% if project.owner_id == current_user.id %}
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeMember({{ member.id }})">
+                        <i class="bi bi-x"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% if not members %}
+                <p class="text-muted text-center mb-0">暂无其他成员</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 文件管理 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h5 class="mb-0"><i class="bi bi-file-earmark"></i> 文件材料</h5>
+            </div>
+            <div class="card-body">
+                <!-- 发票 -->
+                <h6 class="text-primary"><i class="bi bi-file-earmark-text"></i> 发票</h6>
+                <div class="file-card mb-3" onclick="document.getElementById('invoiceInput').click()">
+                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #667eea;"></i>
+                    <p class="mb-0 text-muted">点击上传发票（项目级，不关联具体条目）</p>
+                </div>
+                <input type="file" id="invoiceInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                       onchange="uploadFile(this, 'invoice')">
+                {% set invoice_files = all_files|selectattr('file_type', 'equalto', 'invoice')|list %}
+                {% if invoice_files %}
+                <div class="list-group mb-3">
+                    {% for f in invoice_files %}
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div class="text-truncate" style="max-width: 55%;">
+                            <a href="{{ url_for('project.download_file', project_id=project.id, file_id=f.id) }}" class="text-decoration-none small">
+                                <i class="bi bi-paperclip"></i> {{ f.original_filename }}
+                            </a>
+                            {% if f.item_id %}
+                                <small class="text-muted d-block">条目 #{{ f.item_id }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-info" onclick="previewFile({{ f.id }})" title="预览">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <form method="POST" action="{{ url_for('project.delete_file', project_id=project.id, file_id=f.id) }}"
+                                  style="display:inline;" onsubmit="return confirm('确定删除？')">
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 支付记录 -->
+                <h6 class="text-success"><i class="bi bi-credit-card"></i> 支付记录</h6>
+                <div class="file-card mb-3" onclick="document.getElementById('paymentInput').click()">
+                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #28a745;"></i>
+                    <p class="mb-0 text-muted">点击上传支付记录（项目级，不关联具体条目）</p>
+                </div>
+                <input type="file" id="paymentInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                       onchange="uploadFile(this, 'payment')">
+                {% set payment_files = all_files|selectattr('file_type', 'equalto', 'payment')|list %}
+                {% if payment_files %}
+                <div class="list-group mb-3">
+                    {% for f in payment_files %}
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div class="text-truncate" style="max-width: 55%;">
+                            <a href="{{ url_for('project.download_file', project_id=project.id, file_id=f.id) }}" class="text-decoration-none small">
+                                <i class="bi bi-paperclip"></i> {{ f.original_filename }}
+                            </a>
+                            {% if f.item_id %}
+                                <small class="text-muted d-block">条目 #{{ f.item_id }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-info" onclick="previewFile({{ f.id }})" title="预览">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <form method="POST" action="{{ url_for('project.delete_file', project_id=project.id, file_id=f.id) }}"
+                                  style="display:inline;" onsubmit="return confirm('确定删除？')">
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- 辅助材料 -->
+                <h6 class="text-info"><i class="bi bi-files"></i> 辅助材料</h6>
+                <div class="file-card mb-3" onclick="document.getElementById('supportInput').click()">
+                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #17a2b8;"></i>
+                    <p class="mb-0 text-muted">点击上传辅助材料</p>
+                </div>
+                <input type="file" id="supportInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                       onchange="uploadFile(this, 'support')">
+                {% set support_files = all_files|selectattr('file_type', 'equalto', 'support')|list %}
+                {% if support_files %}
+                <div class="list-group">
+                    {% for f in support_files %}
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div class="text-truncate" style="max-width: 55%;">
+                            <a href="{{ url_for('project.download_file', project_id=project.id, file_id=f.id) }}" class="text-decoration-none small">
+                                <i class="bi bi-paperclip"></i> {{ f.original_filename }}
+                            </a>
+                            {% if f.item_id %}
+                                <small class="text-muted d-block">条目 #{{ f.item_id }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-info" onclick="previewFile({{ f.id }})" title="预览">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <form method="POST" action="{{ url_for('project.delete_file', project_id=project.id, file_id=f.id) }}"
+                                  style="display:inline;" onsubmit="return confirm('确定删除？')">
+                                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加备案条目 Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="dialog modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle"></i> 添加备案条目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addItemForm" onsubmit="return submitItem(event)">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2">
+                        <small><i class="bi bi-info-circle"></i> 创建条目后，点击条目旁的 <i class="bi bi-paperclip"></i> 按钮上传该条目专属的发票和支付记录。</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">指导老师 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="teacher" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">报账时间 <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="reimbursement_date" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">报账内容 <span class="text-danger">*</span></label>
+                            <select class="form-select" name="expense_category" id="addExpenseCategory" required>
+                                <option value="">请选择报账内容</option>
+                                <option value="报名费">报名费</option>
+                                <option value="住宿费">住宿费</option>
+                                <option value="大交通费">大交通费（机票、火车票）</option>
+                                <option value="小交通">小交通</option>
+                            </select>
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle"></i> 除小交通外，其他类别必须上传发票和支付记录
+                            </div>
+                            <!-- 大交通费专属字段 -->
+                            <div id="addTransportFields" style="display:none;" class="mt-2 p-2 border rounded bg-light">
+                                <small class="text-muted d-block mb-2"><i class="bi bi-truck"></i> 大交通详细信息</small>
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <select class="form-select form-select-sm" name="direction">
+                                            <option value="">往/返</option>
+                                            <option value="往">往</option>
+                                            <option value="返">返</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" class="form-control form-control-sm" name="origin" placeholder="起点">
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" class="form-control form-control-sm" name="destination" placeholder="终点">
+                                    </div>
+                                    <div class="col-4">
+                                        <select class="form-select form-select-sm" name="transport_mode">
+                                            <option value="">机票/车票</option>
+                                            <option value="机票">机票</option>
+                                            <option value="车票">车票</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">支出金额 (元) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" class="form-control" name="amount" required placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">报账人 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="applicant" required
+                                   value="{{ current_user.real_name or '' }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">学号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_id" required
+                                   value="{{ current_user.student_id or '' }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">班级 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_class" required
+                                   value="{{ current_user.student_class or '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">对应比赛名称和时间</label>
+                        <input type="text" class="form-control" value="{{ project.competition_name or '（在项目设置中填写）' }}" readonly disabled
+                               style="background-color: #f8f9fa; cursor: not-allowed;">
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 比赛名称在项目设置中统一管理，所有条目共享
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑备案条目 Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil-square"></i> 编辑备案条目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editItemForm" onsubmit="return updateItem(event)">
+                <input type="hidden" name="item_id" id="editItemId">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">指导老师 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="teacher" id="editTeacher" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">报账时间 <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="reimbursement_date" id="editDate" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">报账内容 <span class="text-danger">*</span></label>
+                            <select class="form-select" name="expense_category" id="editExpenseCategory" required
+                                    onchange="toggleEditFileUpload()">
+                                <option value="">请选择报账内容</option>
+                                <option value="报名费">报名费</option>
+                                <option value="住宿费">住宿费</option>
+                                <option value="大交通费">大交通费（机票、火车票）</option>
+                                <option value="小交通">小交通</option>
+                            </select>
+                            <div class="form-text text-muted">
+                                <i class="bi bi-info-circle"></i> 除小交通外，其他类别必须上传发票和支付记录
+                            </div>
+                            <!-- 大交通费专属字段 -->
+                            <div id="editTransportFields" style="display:none;" class="mt-2 p-2 border rounded bg-light">
+                                <small class="text-muted d-block mb-2"><i class="bi bi-truck"></i> 大交通详细信息</small>
+                                <div class="row g-2">
+                                    <div class="col-4">
+                                        <select class="form-select form-select-sm" name="direction" id="editDirection">
+                                            <option value="">往/返</option>
+                                            <option value="往">往</option>
+                                            <option value="返">返</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" class="form-control form-control-sm" name="origin" id="editOrigin" placeholder="起点">
+                                    </div>
+                                    <div class="col-4">
+                                        <input type="text" class="form-control form-control-sm" name="destination" id="editDestination" placeholder="终点">
+                                    </div>
+                                    <div class="col-4">
+                                        <select class="form-select form-select-sm" name="transport_mode" id="editTransportMode">
+                                            <option value="">机票/车票</option>
+                                            <option value="机票">机票</option>
+                                            <option value="车票">车票</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">支出金额 (元) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" class="form-control" name="amount" id="editAmount" required>
+                        </div>
+                    </div>
+                    <!-- 编辑时文件上传区域（关联到当前条目） -->
+                    <div id="editFileUploadArea" class="mb-3" style="display:none;">
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
+                                <small><i class="bi bi-exclamation-triangle"></i> 条目关联文件</small>
+                                <a href="#" class="text-dark small" onclick="showItemFiles(document.getElementById('editItemId').value); return false;">
+                                    <i class="bi bi-box-arrow-up-right"></i> 管理文件
+                                </a>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i>
+                                        此处上传的文件仅关联当前条目，与其他条目无关
+                                    </small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-primary small"><i class="bi bi-file-earmark-text"></i> 发票：</span>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('editInvoiceInput').click()">
+                                                <i class="bi bi-cloud-upload"></i> 上传
+                                            </button>
+                                            <input type="file" id="editInvoiceInput" class="d-none"
+                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                                   onchange="uploadFileInEdit(this, 'invoice')">
+                                            <span id="editInvoiceStatus" class="small text-danger">未上传</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-success small"><i class="bi bi-credit-card"></i> 支付记录：</span>
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="document.getElementById('editPaymentInput').click()">
+                                                <i class="bi bi-cloud-upload"></i> 上传
+                                            </button>
+                                            <input type="file" id="editPaymentInput" class="d-none"
+                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                                   onchange="uploadFileInEdit(this, 'payment')">
+                                            <span id="editPaymentStatus" class="small text-danger">未上传</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">报账人 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="applicant" id="editApplicant" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">学号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_id" id="editStudentId" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">班级 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_class" id="editStudentClass" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">对应比赛名称和时间</label>
+                        <input type="text" class="form-control" id="editCompetition" value="{{ project.competition_name or '（在项目设置中填写）' }}" readonly disabled
+                               style="background-color: #f8f9fa; cursor: not-allowed;">
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 比赛名称在项目设置中统一管理
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> 保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 添加成员 Modal -->
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus"></i> 邀请团队成员</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">搜索用户</label>
+                    <input type="text" class="form-control" id="userSearch" placeholder="输入用户名、姓名或学号搜索">
+                </div>
+                <div id="userSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 条目文件管理 Modal -->
+<div class="modal fade" id="itemFilesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-paperclip"></i> 条目文件管理</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="itemFilesItemId">
+                <div class="alert alert-info py-2 mb-3">
+                    <small><i class="bi bi-info-circle"></i> 此处上传的文件仅关联当前条目，与其他条目无关。每个条目应有自己独立的发票和支付记录。</small>
+                </div>
+                <div class="row">
+                    <!-- 发票区域 -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-primary text-white py-2">
+                                <small><i class="bi bi-file-earmark-text"></i> 发票</small>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('modalInvoiceInput').click()">
+                                        <i class="bi bi-cloud-upload"></i> 上传发票
+                                    </button>
+                                    <input type="file" id="modalInvoiceInput" class="d-none"
+                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                           onchange="uploadFileInModal(this, 'invoice')">
+                                </div>
+                                <div id="modalInvoiceList" class="list-group" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="list-group-item text-muted small text-center">暂无文件</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 支付记录区域 -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white py-2">
+                                <small><i class="bi bi-credit-card"></i> 支付记录</small>
+                            </div>
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="document.getElementById('modalPaymentInput').click()">
+                                        <i class="bi bi-cloud-upload"></i> 上传支付记录
+                                    </button>
+                                    <input type="file" id="modalPaymentInput" class="d-none"
+                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                           onchange="uploadFileInModal(this, 'payment')">
+                                </div>
+                                <div id="modalPaymentList" class="list-group" style="max-height: 200px; overflow-y: auto;">
+                                    <div class="list-group-item text-muted small text-center">暂无文件</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 文件预览 Modal -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye"></i> 文件预览</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" id="filePreviewBody" style="min-height: 400px; background: #f8f9fa;">
+                <div class="text-center py-5" id="filePreviewLoading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2 text-muted">正在加载文件...</p>
+                </div>
+                <div id="filePreviewContent" style="display:none;">
+                    <!-- 图片预览 -->
+                    <div id="filePreviewImage" style="display:none; text-align: center; padding: 20px;">
+                        <img id="filePreviewImgTag" src="" alt="预览" style="max-width: 100%; max-height: 80vh; object-fit: contain;">
+                    </div>
+                    <!-- PDF预览 -->
+                    <div id="filePreviewPdf" style="display:none; height: 80vh;">
+                        <iframe id="filePreviewPdfFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+                    </div>
+                    <!-- 不支持预览 -->
+                    <div id="filePreviewUnsupported" style="display:none; text-align: center; padding: 60px 20px;">
+                        <i class="bi bi-file-earmark" style="font-size: 4rem; color: #ccc;"></i>
+                        <h5 class="mt-3 text-muted">该文件类型暂不支持在线预览</h5>
+                        <p class="text-muted" id="filePreviewUnsupportedName"></p>
+                        <a id="filePreviewDownloadLink" href="#" class="btn btn-primary mt-2">
+                            <i class="bi bi-download"></i> 下载文件
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a id="filePreviewDownloadBtn" href="#" class="btn btn-primary" download>
+                    <i class="bi bi-download"></i> 下载
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== 备案表管理 ====================
+
+// 添加条目
+function submitItem(event) {
+    event.preventDefault();
+    const form = document.getElementById('addItemForm');
+    const formData = new FormData(form);
+
+    $.ajax({
+        url: '{{ url_for("project.add_item", project_id=project.id) }}',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('添加失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('添加失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+    return false;
+}
+
+// 显示/隐藏大交通费专属字段
+function toggleAddTransportFields() {
+    const cat = document.getElementById('addExpenseCategory').value;
+    document.getElementById('addTransportFields').style.display = (cat === '大交通费') ? 'block' : 'none';
+}
+
+function toggleEditTransportFields() {
+    const cat = document.getElementById('editExpenseCategory').value;
+    document.getElementById('editTransportFields').style.display = (cat === '大交通费') ? 'block' : 'none';
+}
+
+// 添加条目时下拉框变化事件
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('addExpenseCategory').addEventListener('change', toggleAddTransportFields);
+    document.getElementById('editExpenseCategory').addEventListener('change', toggleEditTransportFields);
+});
+
+// 编辑条目 - 加载数据
+function editItem(itemId) {
+    // 从表格行获取数据
+    const row = $(`button[onclick="editItem(${itemId})"]`).closest('tr');
+    const cells = row.find('td');
+
+    $('#editItemId').val(itemId);
+    $('#editTeacher').val(cells.eq(0).text().trim());
+    $('#editDate').val(cells.eq(1).text().trim());
+    // 报账内容（第2列是badge，取其中的文本）
+    const badgeText = cells.eq(2).find('.badge').text().trim();
+    // 判断是否为 大交通 类型（badge以"大交通"开头）
+    if (badgeText.startsWith('大交通')) {
+        $('#editExpenseCategory').val('大交通费');
+        // 解析大交通详细信息: "大交通往武汉-北京机票"
+        const rest = badgeText.substring(3); // 去掉"大交通"
+        // 提取方向（往/返）
+        let direction = '', origin = '', destination = '', transportMode = '';
+        if (rest.startsWith('往') || rest.startsWith('返')) {
+            direction = rest.charAt(0);
+            const afterDir = rest.substring(1);
+            // 提取起点-终点
+            const dashIdx = afterDir.indexOf('-');
+            if (dashIdx > 0) {
+                origin = afterDir.substring(0, dashIdx);
+                const afterOrigin = afterDir.substring(dashIdx + 1);
+                // 剩下的可能是"北京机票"或"北京"
+                // 尝试匹配 机票/车票
+                if (afterOrigin.endsWith('机票')) {
+                    destination = afterOrigin.substring(0, afterOrigin.length - 2);
+                    transportMode = '机票';
+                } else if (afterOrigin.endsWith('车票')) {
+                    destination = afterOrigin.substring(0, afterOrigin.length - 2);
+                    transportMode = '车票';
+                } else {
+                    destination = afterOrigin;
+                }
+            }
+        }
+        $('#editDirection').val(direction);
+        $('#editOrigin').val(origin);
+        $('#editDestination').val(destination);
+        $('#editTransportMode').val(transportMode);
+    } else {
+        $('#editExpenseCategory').val(badgeText);
+        // 清空大交通字段
+        $('#editDirection').val('');
+        $('#editOrigin').val('');
+        $('#editDestination').val('');
+        $('#editTransportMode').val('');
+    }
+    $('#editAmount').val(parseFloat(cells.eq(3).text().replace('¥', '').trim()));
+    $('#editApplicant').val(cells.eq(4).text().trim());
+    $('#editStudentId').val(cells.eq(5).text().trim());
+    $('#editStudentClass').val(cells.eq(6).text().trim());
+
+    // 显示/隐藏大交通字段
+    toggleEditTransportFields();
+    // 检查文件状态并显示上传区域
+    toggleEditFileUpload();
+
+    new bootstrap.Modal(document.getElementById('editItemModal')).show();
+}
+
+// 更新条目
+function updateItem(event) {
+    event.preventDefault();
+    const itemId = $('#editItemId').val();
+    
+    if (!itemId) {
+        alert('错误: 未找到条目ID');
+        return false;
+    }
+    
+    const form = document.getElementById('editItemForm');
+    const formData = new FormData(form);
+    // 添加_method覆盖，确保服务器识别为PUT
+    formData.append('_method', 'PUT');
+
+    const url = '{{ url_for("project.project_detail", project_id=project.id) }}/items/' + itemId;
+    console.log('Updating item:', itemId, 'URL:', url);
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('更新失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            console.error('Update error:', xhr.status, xhr.responseText);
+            let errMsg = '服务器错误';
+            try {
+                const resp = JSON.parse(xhr.responseText);
+                errMsg = resp.error || errMsg;
+            } catch(e) {}
+            alert('更新失败: ' + errMsg);
+        }
+    });
+    return false;
+}
+
+// 删除条目
+function deleteItem(itemId) {
+    if (!confirm('确定要删除该条目吗？')) return;
+
+    $.ajax({
+        url: `{{ url_for("project.project_detail", project_id=project.id) }}/items/${itemId}`,
+        method: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('删除失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('删除失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+}
+
+// ==================== 文件上传 ====================
+
+function uploadFile(input, fileType) {
+    if (!input.files || !input.files[0]) return;
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    formData.append('file_type', fileType);
+
+    $.ajax({
+        url: '{{ url_for("project.upload_file", project_id=project.id) }}',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('上传失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('上传失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+
+    input.value = '';
+}
+
+// ==================== 模态框内文件上传（关联条目） ====================
+
+// 编辑模态框 - 切换文件上传区域显示（检查当前条目的文件状态）
+function toggleEditFileUpload() {
+    const category = $('#editExpenseCategory').val();
+    const area = $('#editFileUploadArea');
+    const itemId = $('#editItemId').val();
+
+    if (category === '' || category === '小交通') {
+        area.hide();
+        return;
+    }
+
+    if (!itemId) {
+        area.hide();
+        return;
+    }
+
+    // 检查当前条目的文件状态
+    $.get('{{ url_for("project.project_detail", project_id=project.id) }}/files/check?item_id=' + itemId, function(data) {
+        $('#editInvoiceStatus').text(data.has_invoice ? '✅ 已上传' : '❌ 未上传')
+            .removeClass('text-danger text-success')
+            .addClass(data.has_invoice ? 'text-success' : 'text-danger');
+        $('#editPaymentStatus').text(data.has_payment ? '✅ 已上传' : '❌ 未上传')
+            .removeClass('text-danger text-success')
+            .addClass(data.has_payment ? 'text-success' : 'text-danger');
+        area.show();
+    }).fail(function() {
+        area.show();
+    });
+}
+
+// 编辑模态框中上传文件（关联到当前条目）
+function uploadFileInEdit(input, fileType) {
+    if (!input.files || !input.files[0]) return;
+
+    const itemId = $('#editItemId').val();
+    if (!itemId) {
+        alert('请先保存条目后再上传文件');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    formData.append('file_type', fileType);
+    formData.append('item_id', itemId);
+
+    const statusId = fileType === 'invoice' ? '#editInvoiceStatus' : '#editPaymentStatus';
+
+    $.ajax({
+        url: '{{ url_for("project.upload_file", project_id=project.id) }}',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                $(statusId).text('✅ 已上传').removeClass('text-danger').addClass('text-success');
+                input.value = '';
+            } else {
+                alert('上传失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('上传失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+
+    input.value = '';
+}
+
+// ==================== 条目文件管理 Modal ====================
+
+// 显示条目文件管理模态框
+function showItemFiles(itemId) {
+    $('#itemFilesItemId').val(itemId);
+    loadItemFiles(itemId);
+    new bootstrap.Modal(document.getElementById('itemFilesModal')).show();
+}
+
+// 加载条目的文件列表
+function loadItemFiles(itemId) {
+    // 加载发票
+    $.get('{{ url_for("project.project_detail", project_id=project.id) }}/files/check?item_id=' + itemId, function(data) {
+        // 发票状态
+        const invoiceList = $('#modalInvoiceList');
+        invoiceList.empty();
+        if (data.invoice_files && data.invoice_files.length > 0) {
+            data.invoice_files.forEach(function(f) {
+                invoiceList.append(createFileListItem(f, 'invoice'));
+            });
+        } else {
+            invoiceList.append('<div class="list-group-item text-muted small text-center">暂无发票文件</div>');
+        }
+
+        // 支付记录状态
+        const paymentList = $('#modalPaymentList');
+        paymentList.empty();
+        if (data.payment_files && data.payment_files.length > 0) {
+            data.payment_files.forEach(function(f) {
+                paymentList.append(createFileListItem(f, 'payment'));
+            });
+        } else {
+            paymentList.append('<div class="list-group-item text-muted small text-center">暂无支付记录</div>');
+        }
+    }).fail(function() {
+        // 如果API不支持返回文件列表，至少显示空状态
+        $('#modalInvoiceList').html('<div class="list-group-item text-muted small text-center">暂无发票文件</div>');
+        $('#modalPaymentList').html('<div class="list-group-item text-muted small text-center">暂无支付记录</div>');
+    });
+}
+
+// 创建文件列表项
+function createFileListItem(file, fileType) {
+    const downloadUrl = '{{ url_for("project.download_file", project_id=project.id, file_id=0) }}'.replace('0', file.id);
+    const icon = fileType === 'invoice' ? 'bi-file-earmark-text text-primary' : 'bi-credit-card text-success';
+    return `
+        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1">
+            <div class="text-truncate" style="max-width: 60%;">
+                <a href="${downloadUrl}" class="text-decoration-none small" target="_blank">
+                    <i class="bi ${icon}"></i> ${file.original_filename}
+                </a>
+            </div>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-info py-0" onclick="previewFile(${file.id})" title="预览">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger py-0" onclick="deleteItemFile(${file.id})" title="删除">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// AJAX 删除条目文件（刷新页面以更新侧边栏和表格状态）
+function deleteItemFile(fileId) {
+    if (!confirm('确定删除？')) return;
+
+    const deleteUrl = '{{ url_for("project.delete_file", project_id=project.id, file_id=0) }}'.replace('0', fileId);
+
+    $.ajax({
+        url: deleteUrl,
+        method: 'POST',
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('删除失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('删除失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+}
+
+// 在条目文件管理模态框中上传文件
+function uploadFileInModal(input, fileType) {
+    if (!input.files || !input.files[0]) return;
+
+    const itemId = $('#itemFilesItemId').val();
+    if (!itemId) return;
+
+    const formData = new FormData();
+    formData.append('file', input.files[0]);
+    formData.append('file_type', fileType);
+    formData.append('item_id', itemId);
+
+    $.ajax({
+        url: '{{ url_for("project.upload_file", project_id=project.id) }}',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            if (response.success) {
+                // 刷新页面以更新侧边栏文件列表和条目表格状态
+                location.reload();
+            } else {
+                alert('上传失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('上传失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+
+    input.value = '';
+}
+
+// ==================== 文件预览 ====================
+
+function previewFile(fileId) {
+    const previewUrl = '{{ url_for("project.preview_file", project_id=project.id, file_id=0) }}'.replace('0', fileId);
+    const downloadUrl = '{{ url_for("project.download_file", project_id=project.id, file_id=0) }}'.replace('0', fileId);
+
+    // 重置预览区域
+    $('#filePreviewLoading').show();
+    $('#filePreviewContent').hide();
+    $('#filePreviewImage').hide();
+    $('#filePreviewPdf').hide();
+    $('#filePreviewUnsupported').hide();
+    $('#filePreviewDownloadBtn').attr('href', downloadUrl);
+
+    // 先发一个HEAD请求获取Content-Type
+    $.ajax({
+        url: previewUrl,
+        method: 'HEAD',
+        success: function(data, textStatus, xhr) {
+            const contentType = xhr.getResponseHeader('Content-Type') || '';
+            $('#filePreviewLoading').hide();
+            $('#filePreviewContent').show();
+
+            if (contentType.startsWith('image/')) {
+                // 图片预览
+                $('#filePreviewImgTag').attr('src', previewUrl + '?t=' + Date.now());
+                $('#filePreviewImage').show();
+            } else if (contentType === 'application/pdf') {
+                // PDF预览
+                $('#filePreviewPdfFrame').attr('src', previewUrl);
+                $('#filePreviewPdf').show();
+            } else {
+                // 不支持预览
+                $('#filePreviewUnsupported').show();
+                $('#filePreviewUnsupportedName').text('文件名: ' + downloadUrl.split('/').pop());
+            }
+        },
+        error: function() {
+            // HEAD请求可能不被支持，尝试直接用扩展名判断
+            $('#filePreviewLoading').hide();
+            $('#filePreviewContent').show();
+
+            // 从下载链接提取文件名判断扩展名
+            const filename = downloadUrl.split('/').pop() || '';
+            const ext = filename.split('.').pop().toLowerCase();
+
+            if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) {
+                $('#filePreviewImgTag').attr('src', previewUrl + '?t=' + Date.now());
+                $('#filePreviewImage').show();
+            } else if (ext === 'pdf') {
+                $('#filePreviewPdfFrame').attr('src', previewUrl);
+                $('#filePreviewPdf').show();
+            } else {
+                $('#filePreviewUnsupported').show();
+                $('#filePreviewUnsupportedName').text('文件名: ' + filename);
+            }
+        }
+    });
+
+    new bootstrap.Modal(document.getElementById('filePreviewModal')).show();
+}
+
+// ==================== 团队管理 ====================
+
+let searchTimer = null;
+
+$('#userSearch').on('input', function() {
+    clearTimeout(searchTimer);
+    const query = $(this).val().trim();
+    if (query.length < 1) {
+        $('#userSearchResults').empty();
+        return;
+    }
+
+    searchTimer = setTimeout(function() {
+        $.get('{{ url_for("auth.api_users") }}', { q: query }, function(users) {
+            const container = $('#userSearchResults');
+            container.empty();
+
+            if (users.length === 0) {
+                container.append('<div class="list-group-item text-muted">未找到用户</div>');
+                return;
+            }
+
+            users.forEach(function(user) {
+                const item = `
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${user.real_name || user.username}</strong>
+                            <small class="d-block text-muted">${user.student_id || ''} ${user.student_class || ''}</small>
+                        </div>
+                        <button class="btn btn-sm btn-primary" onclick="addMember(${user.id})">
+                            <i class="bi bi-person-plus"></i> 邀请
+                        </button>
+                    </div>
+                `;
+                container.append(item);
+            });
+        });
+    }, 300);
+});
+
+function addMember(userId) {
+    $.ajax({
+        url: '{{ url_for("project.add_team_member", project_id=project.id) }}',
+        method: 'POST',
+        data: { user_id: userId },
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('添加失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('添加失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+}
+
+function removeMember(memberId) {
+    if (!confirm('确定要移除该成员吗？')) return;
+
+    $.ajax({
+        url: `{{ url_for("project.project_detail", project_id=project.id) }}/team/${memberId}/remove`,
+        method: 'POST',
+        success: function(response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('移除失败: ' + (response.error || '未知错误'));
+            }
+        },
+        error: function(xhr) {
+            alert('移除失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}控制台 - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-speedometer2"></i> 我的项目</h3>
+    {% if not current_user.is_admin() %}
+    <a href="{{ url_for('project.create_project') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> 创建项目
+    </a>
+    {% endif %}
+</div>
+
+{% if projects %}
+<div class="row">
+    {% for project in projects %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h5 class="card-title mb-0">
+                        <a href="{{ url_for('project.project_detail', project_id=project.id) }}" class="text-decoration-none">
+                            {{ project.title }}
+                        </a>
+                    </h5>
+                    {% if project.status == 'draft' %}
+                        <span class="badge bg-secondary badge-status">草稿</span>
+                    {% elif project.status == 'submitted' %}
+                        <span class="badge bg-primary badge-status">已提交</span>
+                    {% elif project.status == 'approved' %}
+                        <span class="badge bg-success badge-status">已通过</span>
+                    {% elif project.status == 'rejected' %}
+                        <span class="badge bg-danger badge-status">已驳回</span>
+                    {% endif %}
+                </div>
+                {% if project.description %}
+                <p class="card-text text-muted small">{{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}</p>
+                {% endif %}
+                <hr>
+                <div class="d-flex justify-content-between text-muted small">
+                    <span><i class="bi bi-person"></i> {{ project.owner_name }}</span>
+                    <span><i class="bi bi-receipt"></i> {{ project.reimbursement_items.count() }} 条</span>
+                    <span><i class="bi bi-file-earmark"></i> {{ project.files.count() }} 个</span>
+                    <span><i class="bi bi-people"></i> {{ project.team_members.count() + 1 }} 人</span>
+                </div>
+                <div class="mt-2 text-muted small">
+                    <i class="bi bi-calendar"></i> {{ project.updated_at }}
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 d-flex gap-1">
+                <a href="{{ url_for('project.project_detail', project_id=project.id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
+                    <i class="bi bi-eye"></i> 查看详情
+                </a>
+                {% if project.owner_id == current_user.id or current_user.is_admin() %}
+                <form method="POST" action="{{ url_for('project.delete_project', project_id=project.id) }}"
+                      onsubmit="return confirm('确定要删除「{{ project.title }}」吗？此操作不可恢复！');" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" title="删除项目">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-folder-open" style="font-size: 4rem; color: #dee2e6;"></i>
+    <h4 class="mt-3 text-muted">暂无项目</h4>
+    {% if not current_user.is_admin() %}
+    <p class="text-muted">点击上方按钮创建你的第一个报销项目</p>
+    <a href="{{ url_for('project.create_project') }}" class="btn btn-primary btn-lg">
+        <i class="bi bi-plus-lg"></i> 创建项目
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

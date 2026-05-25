@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}项目管理 - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0"><i class="bi bi-folder"></i> 所有项目</h3>
+    <a href="{{ url_for('project.dashboard') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> 返回控制台
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>项目名称</th>
+                        <th>创建者</th>
+                        <th>状态</th>
+                        <th>条目数</th>
+                        <th>文件数</th>
+                        <th>成员数</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.id }}</td>
+                        <td><strong>{{ project.title }}</strong></td>
+                        <td>{{ project.owner.real_name or project.owner.username }}</td>
+                        <td>
+                            {% if project.status == 'draft' %}
+                                <span class="badge bg-secondary">草稿</span>
+                            {% elif project.status == 'submitted' %}
+                                <span class="badge bg-primary">已提交</span>
+                            {% elif project.status == 'approved' %}
+                                <span class="badge bg-success">已通过</span>
+                            {% elif project.status == 'rejected' %}
+                                <span class="badge bg-danger">已驳回</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ project.reimbursement_items.count() }}</td>
+                        <td>{{ project.files.count() }}</td>
+                        <td>{{ project.team_members.count() + 1 }}</td>
+                        <td>{{ project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else '' }}</td>
+                        <td>
+                            <a href="{{ url_for('project.project_detail', project_id=project.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> 查看
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

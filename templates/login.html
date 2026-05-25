@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}登录 - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header text-center py-3">
+                <h4 class="mb-0"><i class="bi bi-box-arrow-in-right"></i> 用户登录</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-person"></i> 用户名</label>
+                        <input type="text" class="form-control form-control-lg" name="username" required
+                               placeholder="请输入用户名">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-lock"></i> 密码</label>
+                        <input type="password" class="form-control form-control-lg" name="password" required
+                               placeholder="请输入密码">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-box-arrow-in-right"></i> 登录
+                        </button>
+                    </div>
+                </form>
+                <hr>
+                <div class="text-center">
+                    <p class="mb-0">还没有账号？ <a href="{{ url_for('auth.register') }}" class="text-decoration-none">立即注册</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

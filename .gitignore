@@ -1,0 +1,25 @@
+# 环境变量配置（含邮箱密码等敏感信息）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# 数据库
+*.db
+*.db-wal
+*.db-shm
+
+# 上传文件
+uploads/*
+
+# IDE
+.vscode/
+.idea/
+
+# 运行时文件
+app.log
+app.pid

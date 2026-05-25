@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑项目' if project else '创建项目' }} - 报销材料管理系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header py-3">
+                <h4 class="mb-0">
+                    {% if project %}
+                        <i class="bi bi-pencil-square"></i> 编辑项目
+                    {% else %}
+                        <i class="bi bi-plus-circle"></i> 创建新项目
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('project.edit_project', project_id=project.id) if project else url_for('project.create_project') }}">
+                    <div class="mb-3">
+                        <label class="form-label">项目标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg" name="title" required
+                               value="{{ project.title if project else '' }}" placeholder="请输入项目标题">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">项目描述</label>
+                        <textarea class="form-control" name="description" rows="3"
+                                  placeholder="请输入项目描述">{{ project.description if project else '' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">比赛名称</label>
+                            <input type="text" class="form-control" name="competition_name"
+                                   value="{{ project.competition_name if project else '' }}"
+                                   placeholder="例如：第51届ICPC西安站">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">比赛时间</label>
+                            <input type="text" class="form-control" name="competition_date"
+                                   value="{{ project.competition_date if project else '' }}"
+                                   placeholder="例如：2026-05-01">
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('project.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 返回
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-lg"></i> {{ '保存修改' if project else '创建项目' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}个人信息 - {{ user.real_name or user.username }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- 个人信息卡片 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h4 class="mb-0"><i class="bi bi-person-circle"></i> 个人信息</h4>
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">用户名</label>
+                        <p class="fw-bold">{{ user.username }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">邮箱</label>
+                        <p class="fw-bold">{{ user.email }}
+                            {% if user.email_verified %}
+                            <span class="badge bg-success">已验证</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">未验证</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">角色</label>
+                        <p class="fw-bold">
+                            <span class="badge bg-primary">{{ '管理员' if user.is_admin() else '用户' }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">注册时间</label>
+                        <p class="fw-bold">{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '未知' }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 修改个人信息 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> 修改个人信息</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.profile') }}">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">真实姓名 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="real_name" required
+                                   value="{{ user.real_name or '' }}" placeholder="请输入真实姓名">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">学号 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_id" required
+                                   value="{{ user.student_id or '' }}" placeholder="请输入学号">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">班级 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="student_class" required
+                                   value="{{ user.student_class or '' }}" placeholder="请输入班级">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">邮箱验证码 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="verification_code" required
+                                   placeholder="请输入邮箱验证码" maxlength="6">
+                            <button type="button" class="btn btn-outline-primary" onclick="sendProfileCode(this)">
+                                <i class="bi bi-envelope"></i> 发送验证码
+                            </button>
+                        </div>
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 修改信息需要邮箱验证，验证码将发送至 {{ user.email }}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> 保存修改
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 修改密码 -->
+        <div class="card mb-4">
+            <div class="card-header py-3">
+                <h5 class="mb-0"><i class="bi bi-key"></i> 修改密码</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.change_password') }}">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">旧密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="old_password" required
+                                   placeholder="请输入旧密码">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">新密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="new_password" required
+                                   placeholder="至少6位" minlength="6">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">确认新密码 <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" name="confirm_password" required
+                                   placeholder="再次输入新密码" minlength="6">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">邮箱验证码 <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="verification_code" required
+                                   placeholder="请输入邮箱验证码" maxlength="6">
+                            <button type="button" class="btn btn-outline-primary" onclick="sendProfileCode(this)">
+                                <i class="bi bi-envelope"></i> 发送验证码
+                            </button>
+                        </div>
+                        <div class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 修改密码需要邮箱验证，验证码将发送至 {{ user.email }}
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-key"></i> 修改密码
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 发送验证码（通用）
+function sendProfileCode(btn) {
+    const $btn = $(btn);
+    $btn.prop('disabled', true);
+    $btn.html('<span class="spinner-border spinner-border-sm"></span> 发送中...');
+
+    $.ajax({
+        url: '{{ url_for("auth.send_code") }}',
+        method: 'POST',
+        success: function(response) {
+            if (response.success) {
+                alert('验证码已发送至您的邮箱，请查收');
+                // 60秒倒计时
+                let countdown = 60;
+                const timer = setInterval(function() {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        $btn.prop('disabled', false);
+                        $btn.html('<i class="bi bi-envelope"></i> 发送验证码');
+                    } else {
+                        $btn.html(countdown + '秒后重试');
+                    }
+                }, 1000);
+            } else {
+                alert('发送失败: ' + (response.error || '未知错误'));
+                $btn.prop('disabled', false);
+                $btn.html('<i class="bi bi-envelope"></i> 发送验证码');
+            }
+        },
+        error: function(xhr) {
+            alert('发送失败: ' + (xhr.responseJSON?.error || '服务器错误'));
+            $btn.prop('disabled', false);
+            $btn.html('<i class="bi bi-envelope"></i> 发送验证码');
+        }
+    });
+}
+</script>
+{% endblock %}
