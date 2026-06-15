@@ -121,7 +121,6 @@ def create_project():
             description=description,
             competition_name=competition_name,
             competition_date=competition_date,
-            teacher=teacher,
             owner_id=current_user.id
         )
         db.session.add(project)
@@ -434,12 +433,12 @@ def delete_file(project_id, file_id):
         db.session.delete(file)
         db.session.commit()
 
-        if request.is_json:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': True, 'message': '文件已删除'})
         flash('文件已删除', 'success')
     except Exception as e:
         db.session.rollback()
-        if request.is_json:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'error': f'删除失败: {str(e)}'}), 500
         flash(f'删除失败: {str(e)}', 'danger')
 
@@ -508,8 +507,27 @@ def check_files(project_id):
     item_id = request.args.get('item_id', type=int)
     expense_category = request.args.get('expense_category', '')
 
+    invoice_query = ProjectFile.query.filter_by(project_id=project_id, file_type='invoice')
+    payment_query = ProjectFile.query.filter_by(project_id=project_id, file_type='payment')
+    if item_id is not None:
+        invoice_query = invoice_query.filter_by(item_id=item_id)
+        payment_query = payment_query.filter_by(item_id=item_id)
+    else:
+        invoice_query = invoice_query.filter(ProjectFile.item_id.isnot(None))
+        payment_query = payment_query.filter(ProjectFile.item_id.isnot(None))
+
+    invoice_files = invoice_query.order_by(ProjectFile.created_at.desc()).all()
+    payment_files = payment_query.order_by(ProjectFile.created_at.desc()).all()
+
     ok, msg = check_item_file_requirement(project_id, expense_category, item_id)
-    return jsonify({'ok': ok, 'message': msg})
+    return jsonify({
+        'ok': ok,
+        'message': msg,
+        'has_invoice': len(invoice_files) > 0,
+        'has_payment': len(payment_files) > 0,
+        'invoice_files': [f.to_dict() for f in invoice_files],
+        'payment_files': [f.to_dict() for f in payment_files]
+    })
 
 
 @project_bp.route('/<int:project_id>/team/add', methods=['POST'])

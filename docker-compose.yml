@@ -1,0 +1,75 @@
+services:
+  # MySQL 数据库
+  db:
+    image: mysql:8.0
+    container_name: acmbill-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${DB_NAME:-acmbill}
+      MYSQL_USER: ${MYSQL_USER:-acmbill}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-acmbill123}
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root123}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - acmbill-network
+
+  # Flask 应用
+  app:
+    build: .
+    container_name: acmbill-app
+    restart: unless-stopped
+    ports:
+      - "1444:1444"
+    environment:
+      # 数据库配置（连接 Docker 内的 MySQL）
+      # 注意: MYSQL_USER/MYSQL_PASSWORD 是 Docker MySQL 专属变量名，
+      # 避免与 .env 中用于远程 MySQL 的 DB_USER/DB_PASSWORD 冲突
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER:-acmbill}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-acmbill123}
+      DB_NAME: ${DB_NAME:-acmbill}
+
+      # 密钥
+      SECRET_KEY: ${SECRET_KEY:-docker-bill-management-secret-key-2024}
+
+      # 管理员账号
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+
+      # 邮箱配置（用于发送验证码）
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.qq.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-false}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-}
+    volumes:
+      - upload_data:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - acmbill-network
+
+volumes:
+  mysql_data:
+    driver: local
+  upload_data:
+    driver: local
+
+networks:
+  acmbill-network:
+    driver: bridge

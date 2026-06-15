@@ -51,20 +51,91 @@
 
 ## 快速开始
 
-### 1. 克隆项目
+### 方式一：Docker 部署（推荐）
+
+使用 Docker Compose 一键部署，自动创建 MySQL 数据库并启动应用。
+
+#### 前置条件
+
+安装 [Docker](https://docs.docker.com/get-docker/) 和 [Docker Compose](https://docs.docker.com/compose/install/)（Linux 或 macOS）。
+
+#### 1. 克隆项目
 
 ```bash
 git clone https://github.com/Niobium-41-nb/acmbill.git
 cd acmbill
 ```
 
-### 2. 安装依赖
+#### 2. 配置环境变量
+
+```bash
+cp .env.example .env
+# 编辑 .env 文件，至少配置邮箱信息（用于发送验证码）
+```
+
+必填配置项（邮箱）：
+```env
+MAIL_USERNAME=your_email@qq.com
+MAIL_PASSWORD=your_email_authorization_code
+MAIL_DEFAULT_SENDER=your_email@qq.com
+```
+
+其他配置（可选）：
+- `ADMIN_PASSWORD` - 管理员密码
+- `DB_PASSWORD` - 数据库密码
+- `SECRET_KEY` - 应用密钥
+
+#### 3. 启动应用
+
+```bash
+# 构建并启动（后台运行）
+docker compose up -d
+
+# 查看日志
+docker compose logs -f
+
+# 停止应用
+docker compose down
+
+# 停止并删除数据卷（⚠️ 会清空数据库和上传文件）
+docker compose down -v
+```
+
+应用启动后访问 `http://localhost:1444`。
+
+#### 4. 常用 Docker 命令
+
+```bash
+# 查看运行状态
+docker compose ps
+
+# 重启应用（不重启数据库）
+docker compose restart app
+
+# 重新构建镜像（代码变更后需要）
+docker compose build app
+docker compose up -d
+
+# 进入应用容器
+docker compose exec app bash
+```
+
+### 方式二：本地开发（直接运行）
+
+#### 1. 克隆项目
+
+```bash
+git clone https://github.com/Niobium-41-nb/acmbill.git
+cd acmbill
+```
+
+#### 2. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. 配置环境变量
+#### 3. 配置环境变量
 
 复制并编辑 `.env` 文件：
 
@@ -83,7 +154,7 @@ ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
 ADMIN_EMAIL=admin@example.com
 
-# 数据库配置（MySQL）
+# 数据库配置（MySQL，留空则自动使用 SQLite）
 DB_HOST=your_mysql_host
 DB_PORT=3306
 DB_USER=root
@@ -91,7 +162,7 @@ DB_PASSWORD=your_db_password
 DB_NAME=acmbill
 ```
 
-### 4. 启动应用
+#### 4. 启动应用
 
 ```bash
 # 方式一：直接启动

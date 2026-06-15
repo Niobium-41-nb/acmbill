@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+*.db
+
+# 环境文件
+.env
+*.pid
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 项目运行时文件（挂载 volume，不打包进镜像）
+uploads/
+app.pid
+app.log
+bill.db

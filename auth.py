@@ -385,7 +385,7 @@ def change_password():
     code_record = EmailVerificationCode.query.filter_by(
         email=current_user.email,
         code=verification_code,
-        verified=False
+        used=False
     ).first()
 
     if not code_record:
@@ -397,7 +397,7 @@ def change_password():
         return redirect(url_for('auth.profile'))
 
     # 标记验证码已使用
-    code_record.verified = True
+    code_record.used = True
 
     # 更新密码
     current_user.set_password(new_password)
