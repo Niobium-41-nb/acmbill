@@ -32,6 +32,12 @@
                     {% elif project.status == 'rejected' %}
                         <span class="badge bg-danger badge-status">已驳回</span>
                     {% endif %}
+                    <!-- 报销状态 -->
+                    {% if project.reimburse_status == 'cannot_insure' %}
+                        <span class="badge bg-warning text-dark badge-status">无法报销</span>
+                    {% elif project.reimburse_status == 'reimbursed' %}
+                        <span class="badge bg-success badge-status">已报销</span>
+                    {% endif %}
                 </div>
                 {% if project.description %}
                 <p class="card-text text-muted small">{{ project.description[:100] }}{% if project.description|length > 100 %}...{% endif %}</p>

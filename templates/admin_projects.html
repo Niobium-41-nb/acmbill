@@ -42,6 +42,14 @@
                             {% elif project.status == 'rejected' %}
                                 <span class="badge bg-danger">已驳回</span>
                             {% endif %}
+                            <br>
+                            {% if project.reimburse_status == 'draft' %}
+                                <span class="badge bg-secondary mt-1">待报销</span>
+                            {% elif project.reimburse_status == 'cannot_insure' %}
+                                <span class="badge bg-warning text-dark mt-1">无法报销</span>
+                            {% elif project.reimburse_status == 'reimbursed' %}
+                                <span class="badge bg-success mt-1">已报销</span>
+                            {% endif %}
                         </td>
                         <td>{{ project.reimbursement_items.count() }}</td>
                         <td>{{ project.files.count() }}</td>

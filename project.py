@@ -222,6 +222,25 @@ def update_status(project_id):
     return redirect(url_for('project.project_detail', project_id=project_id))
 
 
+@project_bp.route('/<int:project_id>/reimburse-status', methods=['POST'])
+@login_required
+def update_reimburse_status(project_id):
+    """更新报销状态（仅管理员可操作）"""
+    project = Project.query.get_or_404(project_id)
+    if not current_user.is_admin():
+        flash('无权操作', 'danger')
+        return redirect(url_for('project.dashboard'))
+
+    new_status = request.form.get('reimburse_status', '')
+    if new_status in ['draft', 'cannot_insure', 'reimbursed']:
+        project.reimburse_status = new_status
+        db.session.commit()
+        flash('报销状态已更新', 'success')
+    else:
+        flash('无效的状态值', 'danger')
+    return redirect(url_for('project.project_detail', project_id=project_id))
+
+
 def check_item_file_requirement(project_id, expense_category, item_id=None):
     """检查条目是否满足文件要求（仅检查条目级文件）"""
     if expense_category == '小交通':
@@ -535,36 +554,37 @@ def check_files(project_id):
 def add_team_member(project_id):
     """添加团队成员"""
     project = Project.query.get_or_404(project_id)
-    if project.owner_id != current_user.id:
-        flash('只有项目创建者可以管理团队', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+    if project.owner_id != current_user.id and not current_user.is_admin():
+        return jsonify({'error': '只有项目创建者或管理员可以管理团队'}), 403
 
     # 检查团队成员数量
     current_member_count = project.team_members.count()
     if current_member_count >= 3:
-        flash('团队成员已满（最多3人）', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+        return jsonify({'error': '团队成员已满（最多3人）'}), 400
 
     username = request.form.get('username', '').strip()
-    user = User.query.filter_by(username=username).first()
+    user_id = request.form.get('user_id', type=int)
+    
+    user = None
+    if user_id:
+        user = User.query.get(user_id)
+    elif username:
+        user = User.query.filter_by(username=username).first()
+    
     if not user:
-        flash('用户不存在', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+        return jsonify({'error': '用户不存在'}), 404
 
     if user.id == project.owner_id:
-        flash('不能添加自己为团队成员', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+        return jsonify({'error': '不能添加自己为团队成员'}), 400
 
     existing = TeamMember.query.filter_by(project_id=project.id, user_id=user.id).first()
     if existing:
-        flash('该用户已是团队成员', 'warning')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+        return jsonify({'error': '该用户已是团队成员'}), 400
 
     member = TeamMember(project_id=project.id, user_id=user.id)
     db.session.add(member)
     db.session.commit()
-    flash(f'已添加团队成员: {user.real_name or user.username}', 'success')
-    return redirect(url_for('project.project_detail', project_id=project_id))
+    return jsonify({'success': True, 'message': f'已添加团队成员: {user.real_name or user.username}'})
 
 
 @project_bp.route('/<int:project_id>/team/<int:member_id>/remove', methods=['POST'])
@@ -572,19 +592,16 @@ def add_team_member(project_id):
 def remove_team_member(project_id, member_id):
     """移除团队成员"""
     project = Project.query.get_or_404(project_id)
-    if project.owner_id != current_user.id:
-        flash('只有项目创建者可以管理团队', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+    if project.owner_id != current_user.id and not current_user.is_admin():
+        return jsonify({'error': '只有项目创建者或管理员可以管理团队'}), 403
 
     member = TeamMember.query.get_or_404(member_id)
     if member.project_id != project_id:
-        flash('成员不属于该项目', 'danger')
-        return redirect(url_for('project.project_detail', project_id=project_id))
+        return jsonify({'error': '成员不属于该项目'}), 400
 
     db.session.delete(member)
     db.session.commit()
-    flash('已移除团队成员', 'success')
-    return redirect(url_for('project.project_detail', project_id=project_id))
+    return jsonify({'success': True, 'message': '已移除团队成员'})
 
 
 def generate_reimbursement_excel(project, items):

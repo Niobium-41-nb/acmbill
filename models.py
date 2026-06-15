@@ -81,6 +81,7 @@ class Project(db.Model):
     competition_name = db.Column(db.String(200), nullable=True)
     competition_date = db.Column(db.String(50), nullable=True)
     status = db.Column(db.String(20), default='draft')  # draft, submitted, approved, rejected
+    reimburse_status = db.Column(db.String(20), default='draft')  # draft, cannot_insure, reimbursed
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -103,6 +104,7 @@ class Project(db.Model):
             'competition_name': self.competition_name,
             'competition_date': self.competition_date,
             'status': self.status,
+            'reimburse_status': self.reimburse_status,
             'owner_id': self.owner_id,
             'owner_name': self.owner.real_name or self.owner.username,
             'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else '',

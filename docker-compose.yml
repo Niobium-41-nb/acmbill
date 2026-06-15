@@ -9,8 +9,8 @@ services:
       MYSQL_DATABASE: ${DB_NAME:-acmbill}
       MYSQL_USER: ${MYSQL_USER:-acmbill}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-acmbill123}
-    ports:
-      - "13306:3306"
+    # ports:
+    #   - "13306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
