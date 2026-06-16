@@ -210,10 +210,24 @@
                                 <td>{{ item.student_id }}</td>
                                 <td>{{ item.student_class }}</td>
                                 <td>
-                                    {% if item.expense_category != '小交通' %}
-                                        {% set item_f = item_files.get(item.id, {}) %}
-                                        {% set inv_count = item_f.get('invoice', 0) %}
-                                        {% set pay_count = item_f.get('payment', 0) %}
+                                    {% set item_f = item_files.get(item.id, {}) %}
+                                    {% set inv_count = item_f.get('invoice', 0) %}
+                                    {% set pay_count = item_f.get('payment', 0) %}
+                                    {% if item.expense_category == '小交通' %}
+                                        {# 小交通不强制要求发票和支付记录 #}
+                                        <div style="font-size:0.75rem; white-space:nowrap;">
+                                            {% if inv_count > 0 or pay_count > 0 %}
+                                                <span class="text-success" title="已关联文件">
+                                                    <i class="bi bi-check-circle-fill"></i>
+                                                    {% if inv_count > 0 %}发票{% endif %}
+                                                    {% if inv_count > 0 and pay_count > 0 %} + {% endif %}
+                                                    {% if pay_count > 0 %}支付记录{% endif %}
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted small">—</span>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
                                         {% set has_all = inv_count > 0 and pay_count > 0 %}
                                         <div style="font-size:0.75rem; white-space:nowrap;">
                                             {% if has_all %}
@@ -233,8 +247,6 @@
                                                 </span>
                                             {% endif %}
                                         </div>
-                                    {% else %}
-                                        <span class="text-muted small">—</span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -245,11 +257,9 @@
                                         <button class="btn btn-outline-danger" onclick="deleteItem({{ item.id }})" title="删除">
                                             <i class="bi bi-trash"></i>
                                         </button>
-                                        {% if item.expense_category != '小交通' %}
                                         <button class="btn btn-outline-info" onclick="showItemFiles({{ item.id }})" title="管理文件">
                                             <i class="bi bi-paperclip"></i>
                                         </button>
-                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>
@@ -332,7 +342,7 @@
                     <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #667eea;"></i>
                     <p class="mb-0 text-muted">点击上传发票（项目级，不关联具体条目）</p>
                 </div>
-                <input type="file" id="invoiceInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                <input type="file" id="invoiceInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                        onchange="uploadFile(this, 'invoice')">
                 {% set invoice_files = all_files|selectattr('file_type', 'equalto', 'invoice')|list %}
                 {% if invoice_files %}
@@ -367,7 +377,7 @@
                     <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #28a745;"></i>
                     <p class="mb-0 text-muted">点击上传支付记录（项目级，不关联具体条目）</p>
                 </div>
-                <input type="file" id="paymentInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                <input type="file" id="paymentInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                        onchange="uploadFile(this, 'payment')">
                 {% set payment_files = all_files|selectattr('file_type', 'equalto', 'payment')|list %}
                 {% if payment_files %}
@@ -402,7 +412,7 @@
                     <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #17a2b8;"></i>
                     <p class="mb-0 text-muted">点击上传辅助材料</p>
                 </div>
-                <input type="file" id="supportInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                <input type="file" id="supportInput" class="d-none" accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.zip,.rar" multiple
                        onchange="uploadFile(this, 'support')">
                 {% set support_files = all_files|selectattr('file_type', 'equalto', 'support')|list %}
                 {% if support_files %}
@@ -629,7 +639,7 @@
                                                 <i class="bi bi-cloud-upload"></i> 上传
                                             </button>
                                             <input type="file" id="editInvoiceInput" class="d-none"
-                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                                                    onchange="uploadFileInEdit(this, 'invoice')">
                                             <span id="editInvoiceStatus" class="small text-danger">未上传</span>
                                         </div>
@@ -641,7 +651,7 @@
                                                 <i class="bi bi-cloud-upload"></i> 上传
                                             </button>
                                             <input type="file" id="editPaymentInput" class="d-none"
-                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                                   accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                                                    onchange="uploadFileInEdit(this, 'payment')">
                                             <span id="editPaymentStatus" class="small text-danger">未上传</span>
                                         </div>
@@ -730,7 +740,7 @@
                                         <i class="bi bi-cloud-upload"></i> 上传发票
                                     </button>
                                     <input type="file" id="modalInvoiceInput" class="d-none"
-                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                                            onchange="uploadFileInModal(this, 'invoice')">
                                 </div>
                                 <div id="modalInvoiceList" class="list-group" style="max-height: 200px; overflow-y: auto;">
@@ -751,7 +761,7 @@
                                         <i class="bi bi-cloud-upload"></i> 上传支付记录
                                     </button>
                                     <input type="file" id="modalPaymentInput" class="d-none"
-                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx"
+                                           accept=".pdf,.png,.jpg,.jpeg,.gif,.doc,.docx" multiple
                                            onchange="uploadFileInModal(this, 'payment')">
                                 </div>
                                 <div id="modalPaymentList" class="list-group" style="max-height: 200px; overflow-y: auto;">
@@ -975,8 +985,8 @@ function deleteItem(itemId) {
     if (!confirm('确定要删除该条目吗？')) return;
 
     $.ajax({
-        url: `{{ url_for("project.project_detail", project_id=project.id) }}/items/${itemId}`,
-        method: 'DELETE',
+        url: `{{ url_for("project.project_detail", project_id=project.id) }}/items/${itemId}/delete`,
+        method: 'POST',
         success: function(response) {
             if (response.success) {
                 location.reload();
@@ -996,7 +1006,9 @@ function uploadFile(input, fileType) {
     if (!input.files || !input.files[0]) return;
 
     const formData = new FormData();
-    formData.append('file', input.files[0]);
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('files', input.files[i]);
+    }
     formData.append('file_type', fileType);
 
     $.ajax({
@@ -1028,7 +1040,7 @@ function toggleEditFileUpload() {
     const area = $('#editFileUploadArea');
     const itemId = $('#editItemId').val();
 
-    if (category === '' || category === '小交通') {
+    if (category === '') {
         area.hide();
         return;
     }
@@ -1063,7 +1075,9 @@ function uploadFileInEdit(input, fileType) {
     }
 
     const formData = new FormData();
-    formData.append('file', input.files[0]);
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('files', input.files[i]);
+    }
     formData.append('file_type', fileType);
     formData.append('item_id', itemId);
 
@@ -1185,7 +1199,9 @@ function uploadFileInModal(input, fileType) {
     if (!itemId) return;
 
     const formData = new FormData();
-    formData.append('file', input.files[0]);
+    for (let i = 0; i < input.files.length; i++) {
+        formData.append('files', input.files[i]);
+    }
     formData.append('file_type', fileType);
     formData.append('item_id', itemId);
 

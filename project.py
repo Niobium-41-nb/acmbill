@@ -377,6 +377,7 @@ def update_item(project_id, item_id):
         return jsonify({'error': f'更新失败: {str(e)}'}), 500
 
 
+@project_bp.route('/<int:project_id>/items/<int:item_id>/delete', methods=['POST'])
 @project_bp.route('/<int:project_id>/items/<int:item_id>', methods=['DELETE'])
 @login_required
 def delete_item(project_id, item_id):
@@ -403,25 +404,34 @@ def delete_item(project_id, item_id):
 @project_bp.route('/<int:project_id>/files/upload', methods=['POST'])
 @login_required
 def upload_file(project_id):
-    """上传文件"""
+    """上传文件（支持同时上传多个文件）"""
     project = Project.query.get_or_404(project_id)
     if not check_project_access(project):
         return jsonify({'error': '无权操作'}), 403
 
-    file = request.files.get('file')
+    files = request.files.getlist('files') or ([request.files.get('file')] if request.files.get('file') else [])
     file_type = request.form.get('file_type', 'support')
     item_id = request.form.get('item_id', type=int) or None
 
-    if not file:
+    if not files or not files[0]:
         return jsonify({'error': '请选择文件'}), 400
 
-    result = save_uploaded_file(file, project_id, file_type, current_user.id, item_id)
-    if result:
-        return jsonify({
-            'success': True,
-            'file': result.to_dict(),
-            'message': '文件上传成功'
-        })
+    uploaded = []
+    errors = []
+    for file in files:
+        if file and file.filename:
+            result = save_uploaded_file(file, project_id, file_type, current_user.id, item_id)
+            if result:
+                uploaded.append(result.to_dict())
+            else:
+                errors.append(f'{file.filename}: 文件类型不允许')
+
+    if uploaded:
+        resp = {'success': True, 'files': uploaded, 'message': f'成功上传 {len(uploaded)} 个文件'}
+        if errors:
+            resp['warnings'] = errors
+        return jsonify(resp)
+
     return jsonify({'error': '文件类型不允许'}), 400
 
 
