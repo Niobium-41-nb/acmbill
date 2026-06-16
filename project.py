@@ -962,7 +962,7 @@ def export_zip(project_id):
             if pf.item_id:
                 item = ReimbursementItem.query.get(pf.item_id)
                 if item:
-                    base_name = f"{item.applicant}_{item.expense_category}_{item.reimbursement_date}"
+                    base_name = f"{item.expense_category}_{item.reimbursement_date}"
                 else:
                     base_name = os.path.splitext(pf.original_filename)[0]
             else:
